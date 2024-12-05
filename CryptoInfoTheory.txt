@@ -1,0 +1,127 @@
+API: CoinPaprika
+
+A use case is basically is kind of a part of the feature of your app. a feature is just a set of screens together that are somehow related so for e.g. the profile feature that could be you have a profile screen and an edit-profile screen and these two screens made up a single feature. 
+
+The usecases would now be single actions we could do in these features for e.g. getUserProfileData, updateUserProfilePicture. The big advantage of these usecases are that they are one hand are very reusable, so if we have a additional layer and that need the one usecase we have then we can reuse that, for e.g. getProfileData, we need this usecase in multiple places in our application in different viewModels, if we don't have that usecase then we would put that logic in the viewModel itself, and if we have two viewModels that needs to access the same data we would have the same code into the two different viewModels.
+
+Another advantage is that it leads to what a block article actually called "Screaming Architecture", it means that when you look at your project it helps you to understand that the project is about because you have a usecase package and in that you have your different usecases whose name tells what that usecase is about
+
+DTO stands for Data Transfer Object and it's basically the object that our API returns, but very often we don't need all the data our API returns, so we want to have lighter models that only contains the data that we actually show in our UI, those lighter models comes into our domain model package and the DTOs that directly comes from our API come inside of the data package
+
+We have structured our app into data, domain and presentation, data contains the Remote which contain our DTO objects and API and other than Remote we have Repository whcich contains the Repository Implementation, then we have domain which contains our lighter Models i.e. the data we want to show in the UI, then we have Usecases and finally the Repository Abstraction, lastly the presentation layer have the coin and coin details screen
+
+We first have a common package will will contains our constants like our API Key, Base URL and a Resource/Result class which will contains three data classes called Success, Error and Loading
+
+We will first implement the API which will have two function one to get all the coins and one to get coin by Id, to create those we first need a class that represents such a coin, so we will simply copy a coin from our URL of our API and then use a plugin called as "Kotlin Data class file from JSON", paste that copied coin into that plugin, give it a class name i.e. "CoinDto" and it will generate a data class representing all the coins of the API, but we don't need all the data from that API but just some of that data, so we will go to the model of our domain layer and create a new data class "Coin", this will contain only those things we want to show for a single coin in our UI, so we get the CoinDto from the API but we want to use the Coin in our UI, so we need a way to map these or transform the CoinDto to Coin and for that we will write a function that will maps that
+
+After creating that mapper function we will return a List<CoinDto> for the function in our API i.e. getCoins(), now we need another function i.e. to get a specific coin i.e. getCoinById() so we will repeat the same process as the previous one we will go our API but not for all the coins but for a single coin, copy that and convert that into a data class called as "CoinDetailDto", it's our DTO so create a "CoinDetail" in the domain for our UI and put all the things we need to show for the coin details in our UI, also create a mapper function i.e. to map the CoinDetailDto to CoinDetail and then we can set the return type of the getCoinById to CoinDetailDto
+
+Then we will create the repository and its implementation after that we will create the usecases first will be the getCoinsUseCase() and in it's constructor we will inject our repository, for the usecases it is good if we override the "invoke()" operator function, first of all a usecase should only have one function and that is to execute that usecase, so we will call the operator invoke() function, if we use this invoke() function then we can basically call this usecase (which is a class) as if it was a function and that function will return "Flow<Resource<List<Coin>>>", here we return a "Flow", because we wnat to emit multiple values over a period of time, so first we want to emit that we are now loading a usecase so we can display a progress bar, we want to emit if it's successful and we want to attach our data i.e. our list of coins and if an error happens we want to emit an error here and that is waht the "Resource" class will be helful for. It will return a "flow{}" which will have a try and catch block, so if we are successful then we will return a list of coins else an error. Do the same for a single coin.
+
+Next we will setup our Dagger Hilt, the whole purpose for the dependency injection is it helps us to make our dependency replaceable, a dependency in the end is just a object in our app for e.g. Database's instance or API's instance, coroutine dispatchers, etc and the thing we want to avoid is hardcoing these dependencies into our objects, what that means for e.g. take our getCoinUseCase, instead of injecting the repository which is a depdndency into our constructor and simply hardcode it's instance i.e. create it's instance into the scope of the getCoinUseCase directly, our usecase will still work, but what if we want to test these that hardcoded instance is not replacable at all, that's why we use DI. So in our AppModule we will setup a Module and make it a SingleComponent InstallIn which means that these will live as long as our application does and in that function we will provide the API and the coinRepository. To make DI work we have to create an Application class in our root package to basically give dagger hilt the information about our application so dagger hilt also has access to the application context, if it need that for dependencies and also register that into our Manifest. Also annotate our MainActivity with "AndroidEntryPoint" which allows dagger hilt ot inject the dependencies into this activity and sub-composables which we need for the viewModel
+
+Now create our coinListViewModel and for that we will have a state object which will have all the info we need, so we will create CoinListState which will have coins, isLoaing and error and then in viewModel we have the function i.e. getCoins() and in that we can call our usecase i.e. getCoinsUseCase(), so we can call this usecase like a function because of our operoator invoke() function, now that usecase will return a flow which will have the resource/result value i.e. success, error and loading. Do the same for the coinDetailViewModel, now for the getCoinUseCase(), we need a parameter i.e. the coinId and we can get that by using "savedStateHandle", so savedStateHandle is basically a bundle and it conatins information about the saved state, so we can use that to restore our app from process death for example and it will also contains the navigation parameters, so what we will do is that when we navigate or click on a coin for e.g. bitcoin we will pass the Id of the bitcoin as a parameter to the detail screen and in our detail screen we will load that coin from that API with that Id because we pass that as a navigation parameter that id is contained in that saved instance state already
+
+Next is our UI
+
+Next is our Navigation, first define our navController for our NavHost, then in that for each single screen we have a composable() block, in which we have to pass the route and then in that composable we can put our screen corresponding to the route you pass, for the coinDetails screen we have to append the coinId in our route so we will write "/{coinId}"
+
+Add the Internet permission in our Manifest
+
+"FlowRow" comes from a dependency which comes from a "Accompanist" Library, and FlowRow is basically a Row that will wrap the eleemnts if they exceed the bounds, so all of the text will be put in a row next to each other but if one text gets too long to fit on our screen it will just put into the next line, in that you also have to pass the spacing around MainAxis (X-Axis) and CrossAxis (Y-Axis)
+
+If EPERM exception happens just uninstall and then reinstall your app
+
+------------------------------------------------------------------------------------------------------------------------------------------
+
+CHAT-GPT CONCISE VERSION
+
+This approach to building a **CryptoInfo app** is a clean and modular implementation that emphasizes the separation of concerns. Here's a structured breakdown of the points you covered for clarity:
+
+### **Project Structure**
+1. **Data Layer:**
+   - Contains remote sources (APIs and DTOs) and repositories.
+   - Includes:
+     - **Remote**: API definitions and DTO classes (e.g., `CoinDto`, `CoinDetailDto`).
+     - **Repository Implementation**: Interfaces between the data layer and domain layer.
+
+2. **Domain Layer:**
+   - Focused on core business logic.
+   - Includes:
+     - **Domain Models**: Lightweight models (`Coin`, `CoinDetail`) containing only the data required for the UI.
+     - **Use Cases**: Single actions, e.g., `GetCoinsUseCase`, `GetCoinByIdUseCase`.
+
+3. **Presentation Layer:**
+   - Deals with the user interface and state management.
+   - Includes:
+     - **ViewModels**: Handle UI state, e.g., `CoinListViewModel`, `CoinDetailViewModel`.
+     - **UI Components**: Composables for rendering screens.
+
+4. **Common Package:**
+   - Contains shared resources:
+     - **Constants**: API keys, base URLs.
+     - **Utility Classes**: E.g., `Resource` for handling loading, success, and error states.
+
+---
+
+### **Implementation Steps**
+
+#### **1. API Setup**
+- Define functions to fetch:
+  - A list of coins (`getCoins()`).
+  - Details for a single coin by ID (`getCoinById()`).
+- Use tools like **Kotlin Data Class from JSON** to generate DTOs.
+- Create mappers to transform DTOs (e.g., `CoinDto` → `Coin`) for use in the UI.
+
+#### **2. Repository Implementation**
+- Define a repository interface in the domain layer.
+- Implement the interface in the data layer to fetch and map data using the API.
+
+#### **3. Use Cases**
+- Define single-purpose use cases:
+  - `GetCoinsUseCase`: Emits a flow of `Resource<List<Coin>>` for loading, success, or error.
+  - `GetCoinByIdUseCase`: Emits `Resource<CoinDetail>`.
+- Use the `invoke` operator to make use cases callable like functions.
+
+#### **4. Dependency Injection (DI)**
+- Use **Dagger Hilt** for DI:
+  - Define modules (e.g., `AppModule`) to provide instances of API and repositories.
+  - Annotate the application class and activities with `@HiltAndroidApp` and `@AndroidEntryPoint`.
+
+#### **5. ViewModels**
+- Create ViewModels for managing screen-specific logic:
+  - **CoinListViewModel**:
+    - Holds a `CoinListState` containing `coins`, `isLoading`, and `error`.
+    - Uses `GetCoinsUseCase` to fetch and manage the state of the coin list.
+  - **CoinDetailViewModel**:
+    - Fetches coin details using `GetCoinByIdUseCase`.
+    - Uses `savedStateHandle` to retrieve navigation parameters like `coinId`.
+
+#### **6. Navigation**
+- Define navigation using Jetpack Compose:
+  - Set up a `NavHost` with routes for the coin list and coin detail screens.
+  - Pass parameters (e.g., `coinId`) in the route for the detail screen.
+
+#### **7. UI**
+- Build composables for:
+  - **Coin List Screen**: Displays a list of coins with a progress bar and error handling.
+  - **Coin Detail Screen**: Displays detailed information about a specific coin.
+- Ensure responsive UI design, especially for larger screens.
+
+#### **8. Testing**
+- Write unit tests for:
+  - Use cases to ensure they correctly handle data transformations and flows.
+  - ViewModels to verify state management and error handling.
+
+#### **9. Permissions**
+- Add `INTERNET` permission in the `AndroidManifest.xml`.
+
+---
+
+### **Advantages of this Approach**
+1. **Reusability:** Use cases can be reused across ViewModels or other components.
+2. **Testability:** The use of DI and modular architecture simplifies testing.
+3. **Screaming Architecture:** The project structure highlights the app's purpose at a glance.
+4. **Scalability:** Clean separation of concerns makes the app easier to extend.
+
+This structured architecture ensures maintainability and ease of understanding for developers joining the project later. If you'd like detailed snippets for any specific part (e.g., API setup, ViewModel logic, or DI configuration), let me know!
